@@ -7,37 +7,38 @@ import pandas as pd
 import yfinance as yf
 import datetime
 import matplotlib.pyplot as plt
+import math
 
+def cur_ms(price, step):
+    return math.ceil(price / step) * step
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpointpip install pandas_datareader.
-
-def testyf(symbol):
+def testyf(symbol, step, days_after):
     print(symbol)
-    tickerdata = yf.Ticker(symbol)
-    tickerinfo = tickerdata.info
-#    print(tickerinfo)
-
-    today = datetime.datetime.today().isoformat()
-
-    tickerof = tickerdata.history(interval = '60m', start = '2021-2-2', end = today[:10])
-    ph = tickerof['High']
-    pl = tickerof['Low']
-    print(tickerof.keys())
-    pricelast = ph.describe()
-
-#    print(pricelast)
-
-    # Calculate the 20 and 100 days moving averages of the closing prices
-#    short_rolling_msft = cl.rolling(window=20).mean()
-
     # Plot everything by leveraging the very powerful matplotlib package
     fig, ax = plt.subplots(figsize=(16, 9))
 
-    ax.plot(ph.index, ph, label=symbol+' high')
-    ax.plot(pl.index, pl, label=symbol+' low')
-#    ax.plot(short_rolling_msft.index, short_rolling_msft, label='20 days rolling')
+    tickerdata = yf.Ticker(symbol)
+
+    today = datetime.datetime.today().isoformat()
+
+    tickerof = tickerdata.history(interval = '1d', start = '2020-1-1', end = today[:10])
+    ph = tickerof['Low']
+
+    ms = cur_ms(ph[0], step)
+    i = 0
+    l = len(ph)
+    while i < l:
+        if (ph[i] > ms):
+            #pt = ph[i:i+20]
+            pt = list()
+            next_cnt = min(days_after, l - i)
+            for j in range(next_cnt):
+                pt.append(ph[i+j] - ph[i])
+            ax.plot(list(range(next_cnt)), pt, label=symbol + ' high after ' + str(ms))
+            i += days_after
+        if(i < l):
+            ms = cur_ms(ph[i], step)
+        i += 1;
 
     ax.set_xlabel('Date')
     ax.set_ylabel('Adjusted closing price ($)')
@@ -45,12 +46,9 @@ def testyf(symbol):
 
     plt.show()
 
-    print(pricelast)
-
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    print_hi('PyCharm')
-
-    testyf('BTC-USD')
+    tickers_list = ["BTC-USD", "ETH-USD"]
+    testyf(tickers_list[0], 10000, 20)
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/

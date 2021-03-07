@@ -8,11 +8,6 @@ import yfinance as yf
 import datetime
 import matplotlib.pyplot as plt
 
-
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpointpip install pandas_datareader.
-
 def testyf(symbol):
     print(symbol)
     tickerdata = yf.Ticker(symbol)
