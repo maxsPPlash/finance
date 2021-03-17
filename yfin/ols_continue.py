@@ -12,42 +12,36 @@ import numpy as np
 
 def testyf(symbols):
     print(symbols)
-    # Plot everything by leveraging the very powerful matplotlib package
-    fig, ax = plt.subplots(figsize=(16, 9))
 
     today = datetime.datetime.today().isoformat()
 
     tickerdata1 = yf.Ticker(symbols[0])
     tickerof1 = tickerdata1.history(interval='1h', start='2021-2-1', end=today[:10])
-    high1 = tickerof1['High']
+    data1 = tickerof1['High']
+
+    data1 = data1.diff(periods = 1)
+    data1[0] = 0
+
+#    high1.reset_index(drop=True, inplace=True);
 
     tickerdata2 = yf.Ticker(symbols[1])
     tickerof2 = tickerdata2.history(interval='1h', start='2021-2-1', end=today[:10])
-    high2 = tickerof2['High']
-#    high2.columns[0] = symbols[1]
+    data2 = tickerof2['High']
+
+    data2 = data2.diff(periods = 1)
+    data2[0] = 0
+
+    data1_shifted = data1.shift(periods=-1, fill_value = data1[-1])
+    data2_shifted = data2.shift(periods=-1, fill_value = data2[-1])
+
+    X = np.column_stack((data1_shifted, data2, data2_shifted))
 
     # Add a constant
-    X = sm.add_constant(high2)
+    X = sm.add_constant(X)
 
-    model = sm.OLS(high1, X)
+    model = sm.OLS(data1, X)
     results = model.fit()
     print(results.summary())
-
-    ax.plot(high2, high1, 'r.')
-
-    # Add an axis to the plot
-    axi = plt.axis()
-
-    # Initialize `x`
-    x = np.linspace(axi[0], axi[1] + 0.01)
-
-    ax.plot(x, results.params[0] + results.params[1] * x, 'b', lw=2)
-
-    ax.set_xlabel(symbols[0])
-    ax.set_ylabel(symbols[1])
-    ax.legend()
-
-    plt.show()
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
