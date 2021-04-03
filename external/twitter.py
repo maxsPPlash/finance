@@ -26,4 +26,4 @@ class MyListener(StreamListener):
         return True
 
 twitter_stream = Stream(auth, MyListener())
-twitter_stream.filter(track=['$DB','$MS','$C'])
+twitter_stream.filter(track=['The'])

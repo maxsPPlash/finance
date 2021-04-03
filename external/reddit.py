@@ -6,10 +6,33 @@
 import praw
 from praw.models import MoreComments
 import pandas as pd
+import csv
 
 def reddit_scan():
     tickerlist = ['GME', 'AMC', 'SPCE', 'FUBO', 'BBBY', 'LGND', 'FIZZ', 'SPWR', 'SKT', 'GSX', 'TR', 'GOGO', 'AXDX',
                   'BYND', 'OTRK', 'CLVS', 'RKT', 'SRG', 'IRBT', 'PRTS', 'PGEN', 'TSLA']
+
+    nameList = []
+
+    postfix_2_remove = ['Inc.', 'Ltd.', 'Common Stock', 'Corporation', 'Incorporated', 'Companies', 'Ordinary Shares', 'Shares']
+
+    with open('nasdaq_symbols_over_10B_cap.csv', newline='') as f:
+        reader = csv.reader(f)
+        for row in reader:
+            comp_name = row[1]
+
+            if comp_name == 'Name':
+                continue
+
+            # remove from postfixes
+            for postfix in postfix_2_remove:
+                fn_res = comp_name.find(postfix)
+                if fn_res != -1:
+                    comp_name = comp_name[:fn_res]
+
+            nameList.append(comp_name)
+
+            print(comp_name)
 
     reddit = praw.Reddit(client_id='4hOsAKLbbGom3A',
                          client_secret ='VeLHJtXR3odB3F4zR_nbwFqtFDJVag',
@@ -19,7 +42,7 @@ def reddit_scan():
     subreddit = reddit.subreddit('wallstreetbets')
 
     hot = subreddit.new(limit=100)
-    sum = [0] * len(tickerlist)  # our output array
+    sum = [0] * len(nameList)  # our output array
     counttotal = 0  # total number of comment read
     submissions_counter = 0
 
@@ -32,7 +55,7 @@ def reddit_scan():
                     if isinstance(comment, MoreComments):
                         continue
                     counttotal += 1
-                    for i, ticker in enumerate(tickerlist):
+                    for i, ticker in enumerate(nameList):
                         if ticker in comment.body:
                             sum[i] = sum[i] + 1
 
