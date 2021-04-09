@@ -52,9 +52,6 @@ def trade_crypto(name):
         i += 1
         change.append(cur_price(ticker) - start)
 
-        #cur_plot.set_xdata(numpy.append(cur_plot.get_xdata(), i))
-        #cur_plot.set_ydata(numpy.append(cur_plot.get_ydata(), i))
-
         ax.clear()
         ax.plot(change_id, change, label=name)
 
@@ -63,6 +60,9 @@ def trade_crypto(name):
 
 
 def submit_message(text):
+    if len(text) == 0 or text[0] == '@':
+        return
+
     for coin_nm in crypto_names:
         if coin_nm in text.lower():
             inform_trade(text, coin_nm)
@@ -87,27 +87,32 @@ class CryptoListener(StreamListener):
         return True
 
 def start_stream():
-    access_token = '1378102406693675009-akhaJ9gdAa0VdVZXUtuhMCNRPOtVFU'
-    access_secret = 'JvpykChNr7jr6IVeIog5hPlSSfHKgUtG7AQGACbFYN9IM'
-    consumer_key = 'qiXSMzir0JE0zXOQIdQoasumX'
-    consumer_secret = 'K9721VTgDZJWWn6rqQwAmGYSfUVv60ZJwmlYgA6HPwcL1tPnq0'
+    while True:
+        try:
+            access_token = '1378102406693675009-akhaJ9gdAa0VdVZXUtuhMCNRPOtVFU'
+            access_secret = 'JvpykChNr7jr6IVeIog5hPlSSfHKgUtG7AQGACbFYN9IM'
+            consumer_key = 'qiXSMzir0JE0zXOQIdQoasumX'
+            consumer_secret = 'K9721VTgDZJWWn6rqQwAmGYSfUVv60ZJwmlYgA6HPwcL1tPnq0'
 
-    # @elonmusk => 44196397
-    elon_id = '44196397'
+            # @elonmusk => 44196397
+            elon_id = '44196397'
 
-    auth = OAuthHandler(consumer_key, consumer_secret)
-    auth.set_access_token(access_token, access_secret)
+            auth = OAuthHandler(consumer_key, consumer_secret)
+            auth.set_access_token(access_token, access_secret)
 
-    api = tweepy.API(auth)
+            api = tweepy.API(auth)
 
-    twitter_stream = Stream(auth, CryptoListener())
-    twitter_stream.filter(follow=[elon_id])
+            twitter_stream = Stream(auth, CryptoListener())
+            twitter_stream.filter(follow=[elon_id])
+        except BaseException as e:
+            print("Error on_status: %s" % str(e))
 
 def test_message():
-    msgs = ['Now Bitcoin is suppa cool!', 'oh my DOGE ja ja']
-    submit_message(msgs[1])
+    msgs = ['Now Bitcoin is suppa cool!', 'oh my DOGE, ja ja', "@someguy bitcoin bitcoin"]
+    submit_message(msgs[0])
 
 if __name__ == '__main__':
     start_stream()
+
 #    test_message()
 

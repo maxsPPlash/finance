@@ -5,6 +5,9 @@ from datetime import date,timedelta
 from dateutil.parser import parse
 import numpy as np
 from collections import Counter
+import yfinance as yf
+
+import re
 
 stocks_list = ['GME', 'AMC', 'SPCE', 'FUBO', 'BBBY', 'LGND', 'FIZZ', 'SPWR', 'SKT', 'GSX', 'TR', 'GOGO', 'AXDX',
                   'BYND', 'OTRK', 'CLVS', 'RKT', 'SRG', 'IRBT', 'PRTS', 'PGEN', 'TSLA']
@@ -12,38 +15,68 @@ stocks_list = ['GME', 'AMC', 'SPCE', 'FUBO', 'BBBY', 'LGND', 'FIZZ', 'SPWR', 'SK
 #   https://chromedriver.chromium.org/downloads
 
 def get_comments(comment_list):
-    html = requests.get(f'https://api.pushshift.io/reddit/comment/search?ids{comment_list}&fields=body&size=1000')
-    try:
-        newcomments = html.json()
-    except:
-        print(html)
+    while True:
+        try:
+            html = requests.get(f'https://api.pushshift.io/reddit/comment/search?ids{comment_list}&fields=body&size=100')
+            newcomments = html.json()
+            break
+        except:
+            print(html)
 
     return newcomments
+
+def splitnonalpha(s):
+   pos = 1
+   while pos < len(s) and s[pos].isalpha():
+      pos+=1
+   return (s[:pos], s[pos:])
+
+def valid_stock(ticker):
+    try:
+        tickerdata = yf.Ticker(ticker)
+        return 'marketCap' in tickerdata.info.keys() and tickerdata.info['marketCap'] > 1000000000
+    except:
+        return False
 
 
 def get_stock_list(newcomments, stocks_list):
     stock_dict = Counter()
     for a in newcomments['data']:
-        for ticker in stocks_list:
-            if ticker in a['body']:
-                stock_dict[ticker] += 1
+        words = re.split(r'[^a-zA-Z]+', a['body'])
+        for word in words:
+            word_len = len(word)
+            if (word_len > 1 and word_len < 5 and word.isupper()):
+                if word in stock_dict.keys() or valid_stock(word):
+                    stock_dict[word] += 1
+#        for ticker in stocks_list:
+#            if ticker in a['body']:
+#                stock_dict[ticker] += 1
     return stock_dict
 
-def grab_stock_count(stock_dict, raw_comment_list):
+def grab_stock_count(raw_comment_list):
+    stock_dict = Counter()
     orig_list = np.array(raw_comment_list['data'])
-    comment_list = ",".join(orig_list[0:1000])
-    remove_me = slice(0, 1000)
+    comment_list = ",".join(orig_list[0:100])
+    remove_me = slice(0, 100)
     cleaned = np.delete(orig_list, remove_me)
     i = 0
     while i < len(cleaned):
         print(len(cleaned))
         cleaned = np.delete(cleaned, remove_me)
-        new_comments_list = ",".join(cleaned[0:1000])
+        new_comments_list = ",".join(cleaned[0:100])
         newcomments = get_comments(new_comments_list)
         for a in newcomments['data']:
-            for ticker in stocks_list:
-                if ticker in a['body']:
-                    stock_dict[ticker] += 1
+            words = re.split(r'[^a-zA-Z]+', a['body'])
+            for word in words:
+                word_len = len(word)
+                if (word_len > 1 and word_len < 5 and word.isupper()):
+                    if word in stock_dict.keys() or valid_stock(word):
+                        print(word)
+                        print(a['body'])
+                        stock_dict[word] += 1
+#            for ticker in stocks_list:
+#                if ticker in a['body']:
+#                    stock_dict[ticker] += 1
     stock = dict(stock_dict)
     return stock
 
@@ -54,7 +87,7 @@ def reddit_scan():
     driver = webdriver.Chrome(executable_path=r'chromedriver.exe')
     driver.get(url)
 
-    yesterday = date.today() - timedelta(days=4)
+    yesterday = date.today() - timedelta(days=1)
     links = driver.find_elements_by_xpath('//*[@class="_eYtD2XCVieq6emjKBH3m"]')
     link = ''
     for a in links:
@@ -83,13 +116,18 @@ def reddit_scan():
     raw_comment_list = html.json()
     driver.close()
     orig_list = np.array(raw_comment_list['data'])
-    comment_list = ",".join(orig_list[0:1000])
+#    comment_list = ",".join(orig_list[0:1000])
 
-    newcomments = get_comments(comment_list)
-    stock_dict = get_stock_list(newcomments, stocks_list)
-    stock = grab_stock_count(stock_dict, raw_comment_list)
+#    newcomments = get_comments(comment_list)
+#    stock_dict = get_stock_list(newcomments, stocks_list)
+    stock = grab_stock_count(raw_comment_list)
 
     print(stock)
 
 if __name__ == '__main__':
     reddit_scan()
+
+#    tickerdata = yf.Ticker('msft')
+#    if valid_stock('msft'):
+#        print(tickerdata.info['marketCap'] > 1000000000)
+    #return 'marketCap' in tickerdata.info.keys() and tickerdata.info['marketCap'] > 1000000000
