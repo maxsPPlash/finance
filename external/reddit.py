@@ -36,8 +36,8 @@ def reddit_scan():
 
     reddit = praw.Reddit(client_id='4hOsAKLbbGom3A',
                          client_secret ='VeLHJtXR3odB3F4zR_nbwFqtFDJVag',
-                         username ='maxspplash',
-                         password = '159852psf',
+                         username ='',
+                         password = '',
                          user_agent ='spplashscrap')
     subreddit = reddit.subreddit('wallstreetbets')
 
