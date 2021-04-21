@@ -1,82 +1,100 @@
 import tweepy
 from tweepy import OAuthHandler, Stream, StreamListener
-import yfinance as yf
-from datetime import date,timedelta
-import matplotlib.pyplot as plt
+
+from binance.client import Client
+from binance.websockets import BinanceSocketManager
+
 import time
-import numpy
+import smtplib
 
-#crypto_names = ['bitcoin cash', 'bitcoin', 'doge', 'ethereum', 'litecoin', 'cardano']
-#name2ticker = {crypto_names[0]: '', 2: 'For', 3: 'Geeks'}
-
-#crypto_names = ['bitcoin', 'doge', 'ethereum']
-name2ticker = {'bitcoin': 'BTC-USD', 'doge': 'DOGE-USD', 'ethereum': 'ETH-USD', 'dogecoin': 'DOGE-USD'}
+#name2ticker = {'bitcoin': 'BTCEUR', 'doge': 'DOGEEUR', 'ethereum': 'ETHEUR', 'dogecoin': 'DOGEEUR'}
+name2ticker = {'doge': 'DOGEEUR', 'dogecoin': 'DOGEEUR'}
 crypto_names = list(name2ticker.keys())
 
-def cur_price(ticker):
-    tickerdata = yf.Ticker(ticker)
-
-    today = date.today()
-    tomorrow = date.today() + timedelta(days=1)
-
-    tickerof = tickerdata.history(interval='1m', start=today.isoformat()[:10], end=tomorrow.isoformat()[:10])
-    high = tickerof['High']
-
-    return high[-1];
-
-def inform_trade(text, coin):
-    print('Trading {} because of message {}'.format(coin, text))
-
-def trade_crypto(name):
-    ticker = name2ticker[name]
-    start = cur_price(ticker)
-
-    change = []
-    change_id = []
-
-#    plt.ion()
-    plt.show()
-    plt.pause(0.1)
-
-    fig, ax = plt.subplots(figsize=(16, 9))
-
-    ax.plot(change_id, change, label=name)
-
-    ax.set_xlabel('Minute')
-    ax.set_ylabel('Price diff')
-    ax.legend()
-
-    i = 0
-    while True:
-        change_id.append(i)
-        i += 1
-        change.append(cur_price(ticker) - start)
-
-        ax.clear()
-        ax.plot(change_id, change, label=name)
-
-        fig.canvas.draw()
-        plt.pause(60)
-
-
-def submit_message(text):
-    if len(text) == 0 or text[0] == '@':
-        return
-
-    for coin_nm in crypto_names:
-        if coin_nm in text.lower():
-            inform_trade(text, coin_nm)
-
-            trade_crypto(coin_nm)
-
-
 class CryptoListener(StreamListener):
+    def __init__(self):
+        super(CryptoListener, self).__init__()
+
+        file = open('binance_info.txt') # 1 line key 2 line secret
+        bin_cred = file.read().splitlines()
+
+        api_key = bin_cred[0]
+        api_secret = bin_cred[1]
+
+        self.gm_server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        self.gm_server.ehlo()
+
+        file = open('gmail_info.txt')  # 1 line key 2 line secret
+        gm_cred = file.read().splitlines()
+        gmail_user = gm_cred[0]
+        gmail_password = gm_cred[1]
+
+        self.gm_server.login(gmail_user, gmail_password)
+
+        self.client = Client(api_key, api_secret)
+
+        self.traded = False
+
+    def send_email(self, text):
+        try:
+            self.gm_server.sendmail('maxspplash@gmail.com', 'maxspplash@gmail.com', text)
+        except:
+            print('Something went wrong...')
+
+    def token_trade_history(self, msg):
+        ''' define how to process incoming WebSocket messages '''
+        if msg['e'] != 'error':
+            text = 'Bought at {} now at {}'.format(self.coin_price,  msg['a'])
+            print(text)
+
+    def inform_trade(self, text, coin):
+        message = 'Trading {} because of message "{}"'.format(coin, text)
+        print(message)
+        self.send_email(message)
+
+    def trade_crypto(self, name):
+        ticker = name2ticker[name]
+
+        self.coin_price = float(self.client.get_symbol_ticker(symbol=ticker)['price'])
+
+        eur_trade = 100
+        quant = int(eur_trade / self.coin_price)
+
+        order = self.client.create_test_order(
+            symbol=ticker,
+            side=Client.SIDE_BUY,
+            type=Client.ORDER_TYPE_MARKET,
+            quantity=quant)
+
+        bsm = BinanceSocketManager(self.client)
+        conn_key = bsm.start_symbol_ticker_socket(ticker, self.token_trade_history)
+        bsm.start()
+
+        self.traded = True
+
+        print(order)
+
+    def submit_message(self, text):
+        if len(text) == 0 or text[0] == '@':
+            return
+
+        for coin_nm in crypto_names:
+            if coin_nm in text.lower():
+                self.inform_trade(text, coin_nm)
+
+                self.trade_crypto(coin_nm)
+
+                return
+
     def on_status(self, status):
+        if self.traded:
+            return True
+
         try:
             if status.user.screen_name == 'elonmusk':
                 print('%s (%s at %s)' % (status.text, status.user.screen_name, status.created_at))
 
-                submit_message(status.text)
+                self.submit_message(status.text)
 
         except BaseException as e:
             print("Error on_status: %s" % str(e))
@@ -107,9 +125,13 @@ def start_stream():
         except BaseException as e:
             print("Error on_status: %s" % str(e))
 
+        time.sleep(1)
+
 def test_message():
-    msgs = ['Now Bitcoin is suppa cool!', 'oh my DOGE, ja ja', "@someguy bitcoin bitcoin"]
-    submit_message(msgs[0])
+    cl = CryptoListener()
+
+    msgs = ['Now Bitcoin is suppa cool!', 'oh my DOGE, ja ja', "@someguy doge bitcoin", "oh its DOGEcoin"]
+    cl.submit_message(msgs[3])
 
 if __name__ == '__main__':
     start_stream()
