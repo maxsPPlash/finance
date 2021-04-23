@@ -60,7 +60,7 @@ class CryptoListener(StreamListener):
         eur_trade = 100
         quant = int(eur_trade / self.coin_price)
 
-        order = self.client.create_test_order(
+        order = self.client.create_order(
             symbol=ticker,
             side=Client.SIDE_BUY,
             type=Client.ORDER_TYPE_MARKET,
@@ -105,16 +105,19 @@ class CryptoListener(StreamListener):
         return True
 
 def start_stream():
+    file = open('twitter_info.txt')
+    tw_cred = file.read().splitlines()
+
+    access_token = tw_cred[0]
+    access_secret = tw_cred[1]
+    consumer_key = tw_cred[2]
+    consumer_secret = tw_cred[3]
+
+    # @elonmusk => 44196397
+    elon_id = '44196397'
+
     while True:
         try:
-            access_token = '1378102406693675009-akhaJ9gdAa0VdVZXUtuhMCNRPOtVFU'
-            access_secret = 'JvpykChNr7jr6IVeIog5hPlSSfHKgUtG7AQGACbFYN9IM'
-            consumer_key = 'qiXSMzir0JE0zXOQIdQoasumX'
-            consumer_secret = 'K9721VTgDZJWWn6rqQwAmGYSfUVv60ZJwmlYgA6HPwcL1tPnq0'
-
-            # @elonmusk => 44196397
-            elon_id = '44196397'
-
             auth = OAuthHandler(consumer_key, consumer_secret)
             auth.set_access_token(access_token, access_secret)
 
