@@ -5,5 +5,15 @@ class Trader:
         self.bought = True
 
 
-    def update(self):
-        pass
+    def update(self, ticker_info):
+        if not self.bought:
+            self.buy_info = self.buyalgo.update(ticker_info)
+            if self.buy_info.do_buy:
+                #buy process
+                self.bought = True
+                return
+        sell_info = self.buyalgo.update(ticker_info, self.buy_info)
+        if sell_info.do_sell:
+            # sell process
+            # save result
+            self.bought = False
