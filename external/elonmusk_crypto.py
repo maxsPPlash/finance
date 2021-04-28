@@ -5,7 +5,7 @@ from binance.client import Client
 from binance.websockets import BinanceSocketManager
 
 import time
-import smtplib
+import telegram
 
 #name2ticker = {'bitcoin': 'BTCEUR', 'doge': 'DOGEEUR', 'ethereum': 'ETHEUR', 'dogecoin': 'DOGEEUR'}
 name2ticker = {'doge': 'DOGEEUR', 'dogecoin': 'DOGEEUR'}
@@ -21,25 +21,15 @@ class CryptoListener(StreamListener):
         api_key = bin_cred[0]
         api_secret = bin_cred[1]
 
-        self.gm_server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-        self.gm_server.ehlo()
-
-        file = open('gmail_info.txt')  # 1 line key 2 line secret
-        gm_cred = file.read().splitlines()
-        gmail_user = gm_cred[0]
-        gmail_password = gm_cred[1]
-
-        self.gm_server.login(gmail_user, gmail_password)
-
         self.client = Client(api_key, api_secret)
 
         self.traded = False
 
-    def send_email(self, text):
-        try:
-            self.gm_server.sendmail('maxspplash@gmail.com', 'maxspplash@gmail.com', text)
-        except:
-            print('Something went wrong...')
+    def send_message(self, text):
+        file = open('telegram_info.txt')  # 1 line key 2 line secret
+        tm_cred = file.read().splitlines()
+        bot = telegram.Bot(token=tm_cred[0])
+        bot.sendMessage(chat_id=int(tm_cred[1]), text=text)
 
     def token_trade_history(self, msg):
         ''' define how to process incoming WebSocket messages '''
@@ -50,7 +40,7 @@ class CryptoListener(StreamListener):
     def inform_trade(self, text, coin):
         message = 'Trading {} because of message "{}"'.format(coin, text)
         print(message)
-        self.send_email(message)
+        self.send_message(message)
 
     def trade_crypto(self, name):
         ticker = name2ticker[name]
@@ -60,7 +50,7 @@ class CryptoListener(StreamListener):
         eur_trade = 100
         quant = int(eur_trade / self.coin_price)
 
-        order = self.client.create_order(
+        order = self.client.create_test_order(
             symbol=ticker,
             side=Client.SIDE_BUY,
             type=Client.ORDER_TYPE_MARKET,
@@ -137,7 +127,7 @@ def test_message():
     cl.submit_message(msgs[3])
 
 if __name__ == '__main__':
-    start_stream()
+#    start_stream()
 
-#    test_message()
+    test_message()
 
