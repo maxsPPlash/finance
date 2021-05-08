@@ -5,11 +5,15 @@ from binance.client import Client
 from binance.websockets import BinanceSocketManager
 
 import time
+from datetime import datetime
 import telegram
 
 #name2ticker = {'bitcoin': 'BTCEUR', 'doge': 'DOGEEUR', 'ethereum': 'ETHEUR', 'dogecoin': 'DOGEEUR'}
 name2ticker = {'doge': 'DOGEEUR', 'dogecoin': 'DOGEEUR'}
+ticker2coin = {'DOGEEUR': 'DOGE'}
 crypto_names = list(name2ticker.keys())
+
+# it's becoming messy, need cleanup
 
 class CryptoListener(StreamListener):
     def __init__(self):
@@ -31,10 +35,36 @@ class CryptoListener(StreamListener):
         bot = telegram.Bot(token=tm_cred[0])
         bot.sendMessage(chat_id=int(tm_cred[1]), text=text)
 
+    def check_stop(self, price):
+        self.max_price = max(self.max_price, price)
+
+        # bottom 10% lose
+        if (self.coin_price * 0.90 > price):
+            self.sell_crypto()
+            self.send_message('sold with 10% loss, buy - {}, sell {}'.format(self.coin_price, price))
+            return
+
+        now = datetime.now()
+        time_delta = (now - self.time_buy)
+        # wait 15 min
+        if (time_delta.total_seconds() < 15 * 60):
+            return
+
+        # stop after drop 50% from max to buy price
+        max_dif = self.max_price - self.coin_price
+        cur_dif = price - self.coin_price
+        if (max_dif * 0.50 > cur_dif):
+            self.sell_crypto()
+            self.send_message('sold after 25% drop, buy - {}, sell {}'.format(self.coin_price, price))
+            return
+
+
     def token_trade_history(self, msg):
         ''' define how to process incoming WebSocket messages '''
         if msg['e'] != 'error':
-            text = 'Bought at {} now at {}'.format(self.coin_price,  msg['a'])
+            price = msg['a']
+            text = 'Bought at {} now at {}'.format(self.coin_price, price)
+            self.check_stop(float(price))
             print(text)
 
     def inform_trade(self, text, coin):
@@ -42,27 +72,40 @@ class CryptoListener(StreamListener):
         print(message)
         self.send_message(message)
 
-    def trade_crypto(self, name):
-        ticker = name2ticker[name]
-
-        self.coin_price = float(self.client.get_symbol_ticker(symbol=ticker)['price'])
-
-        eur_trade = 100
-        quant = int(eur_trade / self.coin_price)
+    def sell_crypto(self):
+        quant = int(self.client.get_asset_balance(asset=ticker2coin[self.ticker]))
 
         order = self.client.create_test_order(
-            symbol=ticker,
+            symbol=self.ticker,
+            side=Client.SIDE_SELL,
+            type=Client.ORDER_TYPE_MARKET,
+            quantity=quant)
+
+        print(order)
+
+    def buy_crypto(self):
+        self.coin_price = float(self.client.get_symbol_ticker(symbol=self.ticker)['price'])
+        self.max_price = self.coin_price
+
+        eur_trade = 200
+        quant = int(eur_trade / self.coin_price)
+
+        self.time_buy = datetime.now()
+
+        order = self.client.create_test_order(
+            symbol=self.ticker,
             side=Client.SIDE_BUY,
             type=Client.ORDER_TYPE_MARKET,
             quantity=quant)
 
-        bsm = BinanceSocketManager(self.client)
-        conn_key = bsm.start_symbol_ticker_socket(ticker, self.token_trade_history)
-        bsm.start()
-
         self.traded = True
 
         print(order)
+
+    def listen_price(self):
+        bsm = BinanceSocketManager(self.client)
+        conn_key = bsm.start_symbol_ticker_socket(self.ticker, self.token_trade_history)
+        bsm.start()
 
     def submit_message(self, text):
         if len(text) == 0 or text[0] == '@':
@@ -70,9 +113,11 @@ class CryptoListener(StreamListener):
 
         for coin_nm in crypto_names:
             if coin_nm in text.lower():
-                self.inform_trade(text, coin_nm)
+                self.ticker = name2ticker[coin_nm]
 
-                self.trade_crypto(coin_nm)
+                self.buy_crypto()
+                self.inform_trade(text, coin_nm)
+                self.listen_price()
 
                 return
 
@@ -127,7 +172,7 @@ def test_message():
     cl.submit_message(msgs[3])
 
 if __name__ == '__main__':
-#    start_stream()
+    start_stream()
 
-    test_message()
+#    test_message()
 
