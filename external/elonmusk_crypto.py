@@ -54,8 +54,9 @@ class CryptoListener(StreamListener):
         max_dif = self.max_price - self.coin_price
         cur_dif = price - self.coin_price
         if (max_dif * 0.50 > cur_dif):
-            self.sell_crypto()
-            self.send_message('sold after 25% drop, buy - {}, sell {}'.format(self.coin_price, price))
+            size = self.sell_crypto()
+            if (size > 0) :
+                self.send_message('sold {} after 50% drop, buy - {}, sell {}'.format(size, self.coin_price, price))
             return
 
 
@@ -73,15 +74,18 @@ class CryptoListener(StreamListener):
         self.send_message(message)
 
     def sell_crypto(self):
-        quant = int(self.client.get_asset_balance(asset=ticker2coin[self.ticker]))
+        quant = int(float(self.client.get_asset_balance(asset=ticker2coin[self.ticker])['free']))
 
-        order = self.client.create_test_order(
-            symbol=self.ticker,
-            side=Client.SIDE_SELL,
-            type=Client.ORDER_TYPE_MARKET,
-            quantity=quant)
+        if (quant > 0):
+            order = self.client.create_test_order(
+                symbol=self.ticker,
+                side=Client.SIDE_SELL,
+                type=Client.ORDER_TYPE_MARKET,
+                quantity=quant)
 
-        print(order)
+            print(order)
+
+        return quant
 
     def buy_crypto(self):
         self.coin_price = float(self.client.get_symbol_ticker(symbol=self.ticker)['price'])
