@@ -9,8 +9,8 @@ from datetime import datetime
 import telegram
 
 #name2ticker = {'bitcoin': 'BTCEUR', 'doge': 'DOGEEUR', 'ethereum': 'ETHEUR', 'dogecoin': 'DOGEEUR'}
-name2ticker = {'doge': 'DOGEEUR', 'dogecoin': 'DOGEEUR'}
-ticker2coin = {'DOGEEUR': 'DOGE'}
+name2ticker = {'doge': 'DOGEEUR', 'dogecoin': 'DOGEEUR', 'cardano': 'ADAEUR'}
+ticker2coin = {'DOGEEUR': 'DOGE', 'ADAEUR': 'ADA'}
 crypto_names = list(name2ticker.keys())
 
 # it's becoming messy, need cleanup
@@ -40,8 +40,8 @@ class CryptoListener(StreamListener):
 
         # bottom 10% lose
         if (self.coin_price * 0.90 > price):
-            self.sell_crypto()
-            self.send_message('sold with 10% loss, buy - {}, sell {}'.format(self.coin_price, price))
+#            self.sell_crypto()
+            self.send_message('10% loss, buy - {}, now {} !!!'.format(self.coin_price, price))
             return
 
         now = datetime.now()
@@ -54,9 +54,7 @@ class CryptoListener(StreamListener):
         max_dif = self.max_price - self.coin_price
         cur_dif = price - self.coin_price
         if (max_dif * 0.50 > cur_dif):
-            size = self.sell_crypto()
-            if (size > 0) :
-                self.send_message('sold {} after 50% drop, buy - {}, sell {}'.format(size, self.coin_price, price))
+            self.send_message('50% drop, buy - {}, now {} !!!'.format(self.coin_price, price))
             return
 
 
@@ -73,30 +71,16 @@ class CryptoListener(StreamListener):
         print(message)
         self.send_message(message)
 
-    def sell_crypto(self):
-        quant = int(float(self.client.get_asset_balance(asset=ticker2coin[self.ticker])['free']))
-
-        if (quant > 0):
-            order = self.client.create_test_order(
-                symbol=self.ticker,
-                side=Client.SIDE_SELL,
-                type=Client.ORDER_TYPE_MARKET,
-                quantity=quant)
-
-            print(order)
-
-        return quant
-
     def buy_crypto(self):
         self.coin_price = float(self.client.get_symbol_ticker(symbol=self.ticker)['price'])
         self.max_price = self.coin_price
 
-        eur_trade = 200
+        eur_trade = 650
         quant = int(eur_trade / self.coin_price)
 
         self.time_buy = datetime.now()
 
-        order = self.client.create_test_order(
+        order = self.client.create_order(
             symbol=self.ticker,
             side=Client.SIDE_BUY,
             type=Client.ORDER_TYPE_MARKET,
@@ -172,8 +156,8 @@ def start_stream():
 def test_message():
     cl = CryptoListener()
 
-    msgs = ['Now Bitcoin is suppa cool!', 'oh my DOGE, ja ja', "@someguy doge bitcoin", "oh its DOGEcoin"]
-    cl.submit_message(msgs[3])
+    msgs = ['Now Bitcoin is suppa cool!', 'oh my DOGE, ja ja', "@someguy doge bitcoin", "oh its DOGEcoin", "this Cardano have good energy consumption"]
+    cl.submit_message(msgs[4])
 
 if __name__ == '__main__':
     start_stream()
